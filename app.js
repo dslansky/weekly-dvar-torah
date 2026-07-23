@@ -2,13 +2,22 @@
   'use strict';
 
   const SEFER_ORDER = ['Bereishis', 'Shemos', 'Vayikra', 'Bamidbar', 'Devarim', 'Moadim'];
+  const SEFER_HEBREW = {
+    Bereishis: 'בראשית',
+    Shemos: 'שמות',
+    Vayikra: 'ויקרא',
+    Bamidbar: 'במדבר',
+    Devarim: 'דברים',
+    Moadim: 'מועדים',
+  };
+  const SEARCH_MIN_ENTRIES = 5;
 
   const root = document.getElementById('archive-root');
   const searchInput = document.getElementById('search-input');
+  const searchRow = document.getElementById('search-row');
 
   let allEntries = [];
-  let activeAudio = null; // { audioEl, li }
-  let accessionNumbers = new Map(); // entry.id -> "QTT-001"
+  let activeAudio = null; // { audioEl, article }
 
   init();
 
@@ -24,20 +33,11 @@
       return;
     }
 
-    accessionNumbers = buildAccessionNumbers(allEntries);
+    if (searchRow) searchRow.hidden = allEntries.length < SEARCH_MIN_ENTRIES;
+
     render(allEntries);
     wireSearch();
     wirePermalink();
-  }
-
-  // Stable accession numbers (QTT-001, QTT-002, ...) assigned in chronological
-  // order of the recording date — independent of the sefer-grouped display
-  // order, so a given entry's number never changes as new ones are added.
-  function buildAccessionNumbers(entries) {
-    const sorted = [...entries].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.id < b.id ? -1 : 1));
-    const map = new Map();
-    sorted.forEach((e, i) => map.set(e.id, `QTT-${String(i + 1).padStart(3, '0')}`));
-    return map;
   }
 
   function render(entries) {
@@ -84,7 +84,11 @@
 
     const title = document.createElement('h2');
     title.className = 'shelf-title';
-    title.innerHTML = `<span class="shelf-name">${escapeHtml(sefer)}</span> <span class="shelf-count">(${entries.length})</span>`;
+    title.innerHTML = `
+      <span class="shelf-name">${escapeHtml(sefer)}</span><span class="shelf-count">${entries.length}</span>
+      <span class="shelf-rule" aria-hidden="true"></span>
+      <span class="shelf-hebrew" lang="he" dir="rtl">${escapeHtml(SEFER_HEBREW[sefer] || '')}</span>
+    `;
     section.appendChild(title);
 
     const ul = document.createElement('ul');
@@ -106,11 +110,13 @@
     const durationLabel = entry.durationSec ? formatTime(entry.durationSec) : '—';
     const metaParts = [escapeHtml(entry.parsha), escapeHtml(formatDateUS(entry.date))];
     if (entry.durationSec) metaParts.push(escapeHtml(durationLabel));
-    const accession = accessionNumbers.get(entry.id) || '';
 
     li.innerHTML = `
       <article class="entry" data-id="${escapeAttr(entry.id)}">
         <button class="entry-play-btn" type="button" aria-label="Play ${escapeAttr(entry.title || entry.parsha)}">
+          <svg class="play-ring" viewBox="0 0 44 44" aria-hidden="true">
+            <circle cx="22" cy="22" r="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="115 11" />
+          </svg>
           <svg class="icon-play" viewBox="0 0 24 24" aria-hidden="true"><polygon points="8,5 20,12 8,19" /></svg>
           <svg class="icon-pause" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="4" height="14" /><rect x="14" y="5" width="4" height="14" /></svg>
         </button>
@@ -123,10 +129,10 @@
             <span class="entry-time">0:00 / ${escapeHtml(durationLabel)}</span>
           </div>
         </div>
-        <div class="entry-actions">
-          <span class="catalog-id">${escapeHtml(accession)}</span>
-          <button class="share-btn" type="button" data-id="${escapeAttr(entry.id)}">share</button>
-        </div>
+        <button class="share-btn" type="button" aria-label="Copy permalink">
+          <svg class="icon-share" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M12 3l-4 4M12 3l4 4M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+          <svg class="icon-check" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 13l4 4L19 7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+        </button>
       </article>
     `;
 
@@ -187,11 +193,11 @@
       } catch {
         window.prompt('Copy this link:', url);
       }
-      shareBtn.textContent = 'copied';
       shareBtn.classList.add('copied');
+      shareBtn.setAttribute('aria-label', 'Copied');
       setTimeout(() => {
-        shareBtn.textContent = 'share';
         shareBtn.classList.remove('copied');
+        shareBtn.setAttribute('aria-label', 'Copy permalink');
       }, 1400);
     });
 
