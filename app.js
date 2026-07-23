@@ -8,6 +8,7 @@
 
   let allEntries = [];
   let activeAudio = null; // { audioEl, li }
+  let accessionNumbers = new Map(); // entry.id -> "QTT-001"
 
   init();
 
@@ -23,9 +24,20 @@
       return;
     }
 
+    accessionNumbers = buildAccessionNumbers(allEntries);
     render(allEntries);
     wireSearch();
     wirePermalink();
+  }
+
+  // Stable accession numbers (QTT-001, QTT-002, ...) assigned in chronological
+  // order of the recording date — independent of the sefer-grouped display
+  // order, so a given entry's number never changes as new ones are added.
+  function buildAccessionNumbers(entries) {
+    const sorted = [...entries].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.id < b.id ? -1 : 1));
+    const map = new Map();
+    sorted.forEach((e, i) => map.set(e.id, `QTT-${String(i + 1).padStart(3, '0')}`));
+    return map;
   }
 
   function render(entries) {
@@ -72,7 +84,7 @@
 
     const title = document.createElement('h2');
     title.className = 'shelf-title';
-    title.innerHTML = `${escapeHtml(sefer)} <span class="shelf-count">(${entries.length})</span>`;
+    title.innerHTML = `<span class="shelf-name">${escapeHtml(sefer)}</span> <span class="shelf-count">(${entries.length})</span>`;
     section.appendChild(title);
 
     const ul = document.createElement('ul');
@@ -92,23 +104,19 @@
     li.dataset.parsha = normalizeSearch(entry.parsha + ' ' + (entry.parshaHebrew || ''));
 
     const durationLabel = entry.durationSec ? formatTime(entry.durationSec) : '—';
+    const metaParts = [escapeHtml(entry.parsha), escapeHtml(formatDateUS(entry.date))];
+    if (entry.durationSec) metaParts.push(escapeHtml(durationLabel));
+    const accession = accessionNumbers.get(entry.id) || '';
 
     li.innerHTML = `
       <article class="entry" data-id="${escapeAttr(entry.id)}">
-        <button class="entry-reels-btn" type="button" aria-label="Play ${escapeAttr(entry.title || entry.parsha)}">
-          <span class="reels" aria-hidden="true">
-            <span class="reel"></span>
-            <span class="play-icon"></span>
-            <span class="reel"></span>
-          </span>
+        <button class="entry-play-btn" type="button" aria-label="Play ${escapeAttr(entry.title || entry.parsha)}">
+          <svg class="icon-play" viewBox="0 0 24 24" aria-hidden="true"><polygon points="8,5 20,12 8,19" /></svg>
+          <svg class="icon-pause" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="4" height="14" /><rect x="14" y="5" width="4" height="14" /></svg>
         </button>
         <div class="entry-body">
           <div class="entry-hebrew" lang="he" dir="rtl" data-fallback="${escapeAttr(entry.parsha)}">${escapeHtml(entry.parshaHebrew || '')}</div>
-          <div class="entry-meta">
-            <span class="entry-parsha-en">${escapeHtml(entry.parsha)}</span>
-            <span>${escapeHtml(entry.date)}</span>
-            <span class="entry-duration">${escapeHtml(durationLabel)}</span>
-          </div>
+          <div class="entry-meta">${metaParts.join(' &middot; ')}</div>
           ${entry.notes ? `<div class="entry-notes">${escapeHtml(entry.notes)}</div>` : ''}
           <div class="entry-scrub">
             <input type="range" class="entry-range" min="0" max="100" value="0" step="0.1" aria-label="Seek" />
@@ -116,14 +124,14 @@
           </div>
         </div>
         <div class="entry-actions">
-          <span class="catalog-id">${escapeHtml(entry.id)}</span>
+          <span class="catalog-id">${escapeHtml(accession)}</span>
           <button class="share-btn" type="button" data-id="${escapeAttr(entry.id)}">share</button>
         </div>
       </article>
     `;
 
     const article = li.querySelector('.entry');
-    const playBtn = li.querySelector('.entry-reels-btn');
+    const playBtn = li.querySelector('.entry-play-btn');
     const range = li.querySelector('.entry-range');
     const timeLabel = li.querySelector('.entry-time');
     const shareBtn = li.querySelector('.share-btn');
@@ -193,7 +201,7 @@
   function setPlayingState(article, isPlaying) {
     article.classList.toggle('is-playing', isPlaying);
     article.classList.toggle('is-active', true);
-    const btn = article.querySelector('.entry-reels-btn');
+    const btn = article.querySelector('.entry-play-btn');
     if (btn) {
       const label = isPlaying ? 'Pause' : 'Play';
       btn.setAttribute('aria-label', label);
@@ -243,6 +251,16 @@
     const m = Math.floor(sec / 60);
     const s = sec % 60;
     return `${m}:${String(s).padStart(2, '0')}`;
+  }
+
+  // "2026-07-23" -> "July 23, 2026". Built from UTC components so the
+  // displayed date never shifts based on the viewer's local timezone.
+  function formatDateUS(iso) {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''));
+    if (!match) return iso;
+    const [, y, m, d] = match;
+    const dt = new Date(Date.UTC(Number(y), Number(m) - 1, Number(d)));
+    return dt.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
   }
 
   function escapeHtml(str) {
