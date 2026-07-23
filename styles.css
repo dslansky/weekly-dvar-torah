@@ -392,7 +392,7 @@ a {
   font-family: var(--hebrew);
   font-size: 1.1rem;
   color: var(--ink);
-  text-align: left;
+  text-align: center;
   margin: 24px 0 14px;
 }
 
