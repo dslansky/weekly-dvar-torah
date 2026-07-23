@@ -22,28 +22,33 @@ memo again → run this Shortcut → done.
    - Prompt: `Parsha name (e.g. Lech Lecha)`.
    - Store the result as a variable, e.g. `ParshaName`.
 
-   *(Optional but recommended)* Add a second **Ask for Input** (Text, allow
-   blank) for `Notes`, and a third for `Date` (only needed if archiving
-   something other than "this past Friday" — leave blank normally and let
-   the server default to today in America/New_York).
+   *(Optional but recommended)* Add more **Ask for Input** actions here
+   (Text, allow blank) for `Notes`, `Title`, and/or `Date` — only needed if
+   you want to fill in the optional headers in the next step. Leave `Date`
+   blank normally and let the server default to today in America/New_York.
 
 4. **Build the upload request:**
    - Add action **Get Contents of URL**.
    - URL: `https://weekly-dvar-torah.pages.dev/upload`
    - Method: `POST`
-   - Headers: add one header —
-     - Key: `Authorization`
-     - Value: `Bearer <your UPLOAD_TOKEN>` (the exact value you set with
-       `wrangler pages secret put UPLOAD_TOKEN` — get it from whoever
-       deployed this, it's not in any repo file)
-   - Request Body: **Form**
-     - Add field `file`, type **File**, value = the `Shortcut Input`
-       (the shared audio).
-     - Add field `parsha`, type **Text**, value = `ParshaName` variable.
-     - (Optional) add field `notes`, type **Text**, value = your Notes
-       variable.
-     - (Optional) add field `date`, type **Text**, value = your Date
-       variable, format `YYYY-MM-DD`.
+   - Headers: add these —
+     - Key: `Authorization` → Value: `Bearer <your UPLOAD_TOKEN>` (the exact
+       value you set with `wrangler pages secret put UPLOAD_TOKEN` — get it
+       from whoever deployed this, it's not in any repo file)
+     - Key: `X-Parsha` → Value: `ParshaName` variable (**required**)
+     - Key: `X-Date` → Value: your Date variable, format `YYYY-MM-DD`
+       (**optional** — leave the header out or blank and the server
+       defaults to today in America/New_York)
+     - Key: `X-Title` → Value: your Title variable (**optional** — defaults
+       to "Parshas {parsha}")
+     - Key: `X-Notes` → Value: your Notes variable (**optional**)
+   - Request Body: **File** — set it to the `Shortcut Input` (the shared
+     audio). This sends the raw audio bytes as the request body, which is
+     what this endpoint mode expects — no multipart form to assemble.
+
+   **Header values must be plain ASCII** — type parsha names in Ashkenazi
+   transliteration (`Lech Lecha`, not `לך לך`) in `X-Parsha`/`X-Title`/
+   `X-Notes`. Non-ASCII characters in a header will get mangled or dropped.
 
 5. **Parse the response and show it:**
    - Add action **Get Dictionary from Input** (Input = the result of "Get
@@ -78,3 +83,8 @@ memo again → run this Shortcut → done.
   something this Shortcut needs to handle.
 - Rotating the upload token (see `README.md`) means updating the
   `Authorization` header value in step 4 of this Shortcut.
+- `/upload` also still accepts the older `multipart/form-data` mode (a
+  `file` field plus `parsha`/`title`/`date`/`notes` fields) — that's what
+  `backfill/upload.mjs` uses. Both modes are equivalent on the server side;
+  this Shortcut uses the header + raw-body mode because it's simpler to
+  build in Shortcuts than assembling a multipart form.

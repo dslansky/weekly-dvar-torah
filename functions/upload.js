@@ -10,36 +10,68 @@ export async function onRequestPost({ request, env }) {
   const unauthorized = requireAuth(request, env);
   if (unauthorized) return unauthorized;
 
-  let form;
-  try {
-    form = await request.formData();
-  } catch {
-    return json({ ok: false, error: 'expected multipart/form-data' }, 400);
-  }
+  const contentType = request.headers.get('content-type') || '';
+  const isMultipart = contentType.toLowerCase().startsWith('multipart/form-data');
 
-  const file = form.get('file');
-  const parsha = form.get('parsha');
-  const title = form.get('title');
-  const dateInput = form.get('date');
-  const notes = form.get('notes') || '';
-  const durationHint = form.get('durationSec');
+  let parsha;
+  let title;
+  let dateInput;
+  let notes;
+  let durationHint;
+  let buffer;
 
-  if (!file || typeof file === 'string') {
-    return json({ ok: false, error: 'missing file' }, 400);
-  }
-  if (!parsha) {
-    return json({ ok: false, error: 'missing parsha' }, 400);
-  }
-  if (file.type && !ALLOWED_TYPES.has(file.type)) {
-    return json({ ok: false, error: `unsupported file type: ${file.type}` }, 400);
+  if (isMultipart) {
+    let form;
+    try {
+      form = await request.formData();
+    } catch {
+      return json({ ok: false, error: 'expected multipart/form-data' }, 400);
+    }
+
+    const file = form.get('file');
+    parsha = form.get('parsha');
+    title = form.get('title');
+    dateInput = form.get('date');
+    notes = form.get('notes') || '';
+    durationHint = form.get('durationSec');
+
+    if (!file || typeof file === 'string') {
+      return json({ ok: false, error: 'missing file' }, 400);
+    }
+    if (!parsha) {
+      return json({ ok: false, error: 'missing parsha' }, 400);
+    }
+    if (file.type && !ALLOWED_TYPES.has(file.type)) {
+      return json({ ok: false, error: `unsupported file type: ${file.type}` }, 400);
+    }
+
+    buffer = await file.arrayBuffer();
+  } else {
+    // Raw-body mode: the entire request body is the audio, metadata comes
+    // from headers. Simpler for callers that can't build multipart bodies.
+    parsha = request.headers.get('x-parsha');
+    title = request.headers.get('x-title');
+    dateInput = request.headers.get('x-date');
+    notes = request.headers.get('x-notes') || '';
+    durationHint = undefined;
+
+    if (!parsha) {
+      return json({ ok: false, error: 'missing X-Parsha header' }, 400);
+    }
+    if (contentType && !ALLOWED_TYPES.has(contentType.toLowerCase())) {
+      return json({ ok: false, error: `unsupported file type: ${contentType}` }, 400);
+    }
+
+    buffer = await request.arrayBuffer();
+    if (!buffer || buffer.byteLength === 0) {
+      return json({ ok: false, error: 'missing request body (audio bytes)' }, 400);
+    }
   }
 
   const date = /^\d{4}-\d{2}-\d{2}$/.test(dateInput || '') ? dateInput : todayInNewYork();
   const slug = slugify(parsha);
   const id = `${date}-${slug}`;
   const audioKey = `audio/${id}.m4a`;
-
-  const buffer = await file.arrayBuffer();
 
   let durationSec = null;
   try {

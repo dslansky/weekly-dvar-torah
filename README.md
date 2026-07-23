@@ -89,8 +89,8 @@ Shortcut/backfill script:
 
 ```
 curl -X POST https://weekly-dvar-torah.pages.dev/upload -H "Authorization: Bearer <new-token>"
-# expect: {"ok":false,"error":"expected multipart/form-data"}  (means auth passed)
-# NOT:    {"ok":false,"error":"unauthorized"}                  (means old deployment still live)
+# expect: {"ok":false,"error":"missing X-Parsha header"}  (means auth passed)
+# NOT:    {"ok":false,"error":"unauthorized"}              (means old deployment still live)
 ```
 
 Then update the Bearer token stored in the iOS Shortcut (and the backfill
@@ -131,6 +131,20 @@ the real bucket.
 Deploys happen automatically via Cloudflare Pages' git integration — push to
 `main` and Cloudflare builds + deploys (no build command, output directory is
 the repo root). No CI needed.
+
+## Upload modes
+
+`POST /upload` accepts two request shapes, both producing the same result:
+
+1. **`multipart/form-data`** — `file` (the audio) plus `parsha`/`title`/
+   `date`/`notes` form fields. Used by `backfill/upload.mjs`.
+2. **Raw body + headers** — request body is the raw audio bytes; metadata
+   comes from `X-Parsha` (required), `X-Date`/`X-Title`/`X-Notes`
+   (optional). Header values must be plain ASCII. Used by the iOS Shortcut
+   (`SHORTCUT.md`) since it's simpler to build than a multipart form.
+
+The mode is picked automatically from the request's `Content-Type` — anything
+starting with `multipart/form-data` uses mode 1, everything else uses mode 2.
 
 ## Manifest schema
 
