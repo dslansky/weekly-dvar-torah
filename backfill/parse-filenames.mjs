@@ -6,17 +6,22 @@
 // parsha can't be confidently determined is left out of the CSV and listed
 // as a failure at the end for manual handling.
 //
+// Special-Shabbos qualifiers (e.g. "Vayelech-Shuva", "Shabbos Chanuka") are
+// handled explicitly rather than failing: see SPECIAL_SHABBOS_QUALIFIERS
+// below. This is the one path that makes a network call (to hebcal.com),
+// only when a qualifier is present but no parsha name is.
+//
 // Usage:
 //   node backfill/parse-filenames.mjs --folder "~/Past Recordings" --out backfill/backfill.csv
 //
-// Requires Node 18+.
+// Requires Node 18+ (global fetch).
 
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { normalize, PARSHIYOS } from '../functions/_shared/parsha-data.js';
 
-const LOOKUP = new Set(PARSHIYOS.map(([en]) => normalize(en)));
+const CANONICAL_BY_KEY = new Map(PARSHIYOS.map(([en]) => [normalize(en), en]));
 
 // Confident, unambiguous spelling/abbreviation variants seen in this batch
 // of filenames — each maps to exactly one possible parsha, so this counts
@@ -32,10 +37,62 @@ const ALIASES = {
   vaera: 'Vaeira', // spelling variant
   vayeshev: 'Vayeishev', // spelling variant
   vayetzei: 'Vayeitzei', // spelling variant
+  vayelech: 'Vayeilech', // spelling variant
+};
+
+// hebcal.com uses Sephardic-leaning transliteration in its API responses
+// (e.g. "Miketz", "Toldot", "Achrei Mot") — only consulted when deriving a
+// parsha from a date (see deriveParshaFromDate). Keyed by normalize()'d
+// hebcal title.
+const HEBCAL_ALIASES = {
+  'achrei mot': 'Acharei Mos',
+  'achrei mot kedoshim': 'Acharei Mos-Kedoshim',
+  bechukotai: 'Bechukosai',
+  'behar bechukotai': 'Behar-Bechukosai',
+  behaalotcha: 'Behaaloscha',
+  bereshit: 'Bereishis',
+  'chayei sara': 'Chayei Sarah',
+  chukat: 'Chukas',
+  'chukat balak': 'Chukas-Balak',
+  'ki tavo': 'Ki Savo',
+  'ki teitzei': 'Ki Seitzei',
+  'ki tisa': 'Ki Sisa',
+  'matot masei': 'Matos-Masei',
+  miketz: 'Mikeitz',
+  nasso: 'Naso',
+  shemot: 'Shemos',
+  toldot: 'Toldos',
+  vaetchanan: 'Vaeschanan',
+  vayera: 'Vayeira',
+  yitro: 'Yisro',
+};
+
+// Special-Shabbos qualifiers this script recognizes on a hyphenated second
+// token (e.g. "Mikeitz-Chanukah") or after a bare "Shabbos " prefix (e.g.
+// "Shabbos Chanuka"). Keyed by normalize()'d variant -> canonical label
+// (the label is what goes in the notes field, and what SPECIAL_SHABBOS_QUALIFIERS'
+// values are printed as).
+const QUALIFIER_ALIASES = {
+  chanukah: 'Chanukah',
+  chanuka: 'Chanukah',
+  shuva: 'Shuva',
+  shuvah: 'Shuva',
+  zachor: 'Zachor',
+  zachar: 'Zachor',
+  parah: 'Parah',
+  para: 'Parah',
+  hachodesh: 'HaChodesh',
+  hachodosh: 'HaChodesh',
+  hagadol: 'HaGadol',
+  chazon: 'Chazon',
+  nachamu: 'Nachamu',
 };
 
 const DATE_RE = /(\d{1,2})\.(\d{1,2})\.(\d{2})/;
 const PREFIX_RE = /^(dvar\s+torah|dave\s+torah)\s+/i;
+const SHABBOS_RE = /^shabbos\s+(.+)$/i;
+
+const hebcalMonthCache = new Map();
 
 function parseArgs(argv) {
   const out = {};
@@ -60,7 +117,77 @@ function isoDate(m, d, y2) {
   return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
-function parseFilename(filename) {
+// Resolves free-text parsha input against the table + filename ALIASES.
+// Returns the canonical table name, or null if unresolved.
+function resolveParsha(text) {
+  const key = normalize(text);
+  if (CANONICAL_BY_KEY.has(key)) return CANONICAL_BY_KEY.get(key);
+  if (ALIASES[key]) return ALIASES[key];
+  return null;
+}
+
+function resolveQualifier(word) {
+  return QUALIFIER_ALIASES[normalize(word)] || null;
+}
+
+// Detects a special-Shabbos qualifier in a raw (already-failed-direct-match)
+// parsha token. Returns { parshaPart, qualifierLabel } or null.
+//   "Mikeitz-Chanukah"  -> { parshaPart: 'Mikeitz', qualifierLabel: 'Chanukah' }
+//   "Vayelech-Shuva"    -> { parshaPart: 'Vayelech', qualifierLabel: 'Shuva' }
+//   "Shabbos Chanuka"   -> { parshaPart: '', qualifierLabel: 'Chanukah' }
+function detectQualifier(rawParsha) {
+  const hyphenIdx = rawParsha.indexOf('-');
+  if (hyphenIdx > -1) {
+    const first = rawParsha.slice(0, hyphenIdx).trim();
+    const second = rawParsha.slice(hyphenIdx + 1).trim();
+    const label = resolveQualifier(second);
+    if (label) return { parshaPart: first, qualifierLabel: label };
+  }
+
+  const shabbosMatch = SHABBOS_RE.exec(rawParsha);
+  if (shabbosMatch) {
+    const label = resolveQualifier(shabbosMatch[1]);
+    if (label) return { parshaPart: '', qualifierLabel: label };
+  }
+
+  return null;
+}
+
+// Finds the Shabbos (Saturday) on/after `iso` and asks hebcal.com what
+// parsha is read that week. Returns the canonical table name, or null if
+// the lookup fails for any reason (network error, no data, unresolvable
+// title) — callers treat null as "could not derive, fail loudly".
+async function deriveParshaFromDate(iso) {
+  const d = new Date(`${iso}T00:00:00Z`);
+  const daysUntilSat = (6 - d.getUTCDay() + 7) % 7;
+  d.setUTCDate(d.getUTCDate() + daysUntilSat);
+  const y = d.getUTCFullYear();
+  const m = d.getUTCMonth() + 1;
+  const satIso = `${y}-${String(m).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+
+  const cacheKey = `${y}-${m}`;
+  let items = hebcalMonthCache.get(cacheKey);
+  if (!items) {
+    const url = `https://www.hebcal.com/hebcal?v=1&cfg=json&year=${y}&month=${m}&s=on&maj=off&min=off&mod=off&nx=off&mf=off&ss=off&c=off&geo=none`;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      const data = await res.json();
+      items = data.items || [];
+      hebcalMonthCache.set(cacheKey, items);
+    } catch {
+      return null;
+    }
+  }
+
+  const match = items.find((i) => i.category === 'parashat' && i.date === satIso);
+  if (!match) return null;
+
+  const title = match.title.replace(/^Parashat\s+/i, '').replace(/^Parshat\s+/i, '');
+  return resolveParsha(title) || HEBCAL_ALIASES[normalize(title)] || null;
+}
+
+async function parseFilename(filename) {
   const name = filename.replace(/\.m4a$/i, '');
   const dateMatch = DATE_RE.exec(name);
   if (!dateMatch) {
@@ -80,27 +207,42 @@ function parseFilename(filename) {
     return { ok: false, reason: 'no parsha text before the date' };
   }
 
-  const key = normalize(rawParsha);
-  let canonical = null;
-  let viaAlias = false;
-
-  if (LOOKUP.has(key)) {
-    canonical = rawParsha;
-  } else if (ALIASES[key]) {
-    canonical = ALIASES[key];
-    viaAlias = true;
-  } else {
-    return { ok: false, reason: `parsha "${rawParsha}" not found in lookup table (and no confident alias)` };
+  const direct = resolveParsha(rawParsha);
+  if (direct) {
+    return { ok: true, date: iso, parsha: direct, notes: '', rawParsha, viaAlias: direct !== rawParsha };
   }
 
-  return { ok: true, date: iso, parsha: canonical, rawParsha, viaAlias };
+  const qualifier = detectQualifier(rawParsha);
+  if (qualifier) {
+    const notes = `Shabbos ${qualifier.qualifierLabel}`;
+
+    if (qualifier.parshaPart) {
+      const resolved = resolveParsha(qualifier.parshaPart);
+      if (resolved) {
+        return { ok: true, date: iso, parsha: resolved, notes, rawParsha, viaAlias: true, viaQualifier: true };
+      }
+      return {
+        ok: false,
+        reason: `parsha "${qualifier.parshaPart}" (before "${qualifier.qualifierLabel}" qualifier) not found in lookup table`,
+      };
+    }
+
+    console.log(`  deriving parsha for "${filename}" (Shabbos ${qualifier.qualifierLabel}) via hebcal.com ...`);
+    const derived = await deriveParshaFromDate(iso);
+    if (derived) {
+      return { ok: true, date: iso, parsha: derived, notes, rawParsha, viaAlias: true, viaQualifier: true, viaDate: true };
+    }
+    return { ok: false, reason: `Shabbos ${qualifier.qualifierLabel} but no parsha in filename, and could not derive one for ${iso} from hebcal.com` };
+  }
+
+  return { ok: false, reason: `parsha "${rawParsha}" not found in lookup table (and no confident alias)` };
 }
 
 function csvField(value) {
   return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
 }
 
-function main() {
+async function main() {
   const args = parseArgs(process.argv.slice(2));
   const folder = expandHome(args.folder);
   const outPath = args.out || 'backfill.csv';
@@ -125,14 +267,19 @@ function main() {
   const idCounts = new Map();
 
   for (const filename of files) {
-    const result = parseFilename(filename);
+    const result = await parseFilename(filename);
     if (!result.ok) {
       failures.push({ filename, reason: result.reason });
       continue;
     }
 
-    rows.push({ filename, date: result.date, parsha: result.parsha });
-    if (result.viaAlias) {
+    rows.push({ filename, date: result.date, parsha: result.parsha, notes: result.notes || '' });
+
+    if (result.viaQualifier) {
+      aliased.push(
+        `${filename}  ->  parsha "${result.parsha}", notes "${result.notes}"${result.viaDate ? ' (parsha derived from date)' : ''}`
+      );
+    } else if (result.viaAlias) {
       aliased.push(`${filename}  ->  "${result.rawParsha}" normalized to "${result.parsha}"`);
     }
 
@@ -142,7 +289,14 @@ function main() {
 
   rows.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 
-  const csv = ['filename,date,parsha', ...rows.map((r) => [csvField(r.filename), r.date, csvField(r.parsha)].join(','))].join('\n') + '\n';
+  const hasNotes = rows.some((r) => r.notes);
+  const header = hasNotes ? 'filename,date,parsha,notes' : 'filename,date,parsha';
+  const csv =
+    [header, ...rows.map((r) => {
+      const cells = [csvField(r.filename), r.date, csvField(r.parsha)];
+      if (hasNotes) cells.push(csvField(r.notes));
+      return cells.join(',');
+    })].join('\n') + '\n';
   fs.mkdirSync(path.dirname(path.resolve(outPath)), { recursive: true });
   fs.writeFileSync(outPath, csv);
 
@@ -172,4 +326,7 @@ function main() {
   }
 }
 
-main();
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

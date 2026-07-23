@@ -35,19 +35,34 @@ This scans every `.m4a` in the folder, and for each one:
   list for confident one-to-one spelling variants seen in real filenames
   (e.g. `Bshalach` → `Beshalach`, `Vaera` → `Vaeira`, `Shemini` → `Shmini`).
   These are printed at the end so you can double-check them.
-- **Never guesses.** A filename with no parseable date, or a parsha string
-  that doesn't match the table or the alias list (ambiguous combos like
-  `Mikeitz-Chanukah` or `Shabbos Chanuka`, where more than one real parsha
-  could be meant), is left out of the CSV and listed as a failure at the end
-  for you to add by hand.
+- **Handles special-Shabbos qualifiers.** A hyphenated second token that
+  isn't one of the seven doubled parshiyos — `Mikeitz-Chanukah`,
+  `Vayelech-Shuva` — is treated as "regular parsha + qualifier": the first
+  token becomes the parsha, and `Shabbos {Qualifier}` goes in a `notes`
+  column (the CSV gains that column automatically once any row needs it).
+  Recognized qualifiers: Chanukah, Shuva, Zachor, Parah, HaChodesh, HaGadol,
+  Chazon, Nachamu. If the qualifier is present but there's no parsha token
+  at all (`Shabbos Chanuka 12.27.24.m4a`), the parsha is derived from the
+  date — the script works out the Shabbos (Saturday) on/after that date and
+  asks [hebcal.com](https://www.hebcal.com)'s public API what's read that
+  week (translating its Sephardic-leaning spelling, e.g. `Miketz`, back to
+  this project's Ashkenazi convention). This is the one path that needs
+  network access; it prints what it's doing when it happens.
+- **Never guesses beyond that.** A filename with no parseable date, a
+  hyphenated qualifier this script doesn't recognize (e.g. `Vayikra-Purim`
+  — `Purim` isn't in the list above), or a parsha string that doesn't match
+  the table/alias list/qualifier pattern at all, is left out of the CSV and
+  listed as a failure at the end for you to add by hand. Same if the
+  date-derivation lookup itself fails (offline, hebcal.com down, no data
+  for that date).
 - Also flags (without failing) any files that would produce the *same*
   upload id — same date + same parsha — so you know which duplicates will
   get skipped automatically in step 3.
 
-Review `backfill/backfill.csv` before moving on — it's plain
-`filename,date,parsha`, one row per recording. Fix or add rows by hand as
-needed; anything you add manually just needs those three columns and no
-special formatting.
+Review `backfill/backfill.csv` before moving on — it's `filename,date,parsha`
+(plus a `notes` column if any row needed one), one row per recording. Fix or
+add rows by hand as needed; anything you add manually just needs those
+columns and no special formatting.
 
 If your filenames *don't* encode date/parsha, skip this step and write
 `backfill.csv` by hand instead (see `backfill/example.csv` for the format;
