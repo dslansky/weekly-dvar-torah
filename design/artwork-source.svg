@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="3000" height="3000" viewBox="0 0 3000 3000">
+  <defs>
+    <style>
+      .serif { font-family: 'FreeSerif', 'Liberation Serif', serif; }
+      .mono { font-family: 'Liberation Mono', 'DejaVu Sans Mono', monospace; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="3000" height="3000" fill="#FAFAF7" />
+
+  <!-- outer stamped frame -->
+  <rect x="140" y="140" width="2720" height="2720" fill="none" stroke="#1a1a16" stroke-width="4" />
+  <rect x="172" y="172" width="2656" height="2656" fill="none" stroke="#2B3A9E" stroke-width="10" />
+
+  <!-- top mono label -->
+  <text x="1500" y="430" class="mono" font-size="46" fill="#2B3A9E" text-anchor="middle" letter-spacing="14">DVAR TORAH ARCHIVE</text>
+  <line x1="900" y1="480" x2="2100" y2="480" stroke="#1a1a16" stroke-width="3" />
+
+  <!-- main title -->
+  <text x="1500" y="1220" class="serif" font-size="280" font-weight="bold" fill="#1a1a16" text-anchor="middle">QUICK</text>
+  <text x="1500" y="1500" class="serif" font-size="280" font-weight="bold" fill="#1a1a16" text-anchor="middle">TORAH</text>
+  <text x="1500" y="1780" class="serif" font-size="280" font-weight="bold" fill="#2B3A9E" text-anchor="middle">THOUGHTS</text>
+
+  <line x1="900" y1="1880" x2="2100" y2="1880" stroke="#1a1a16" stroke-width="3" />
+  <text x="1500" y="1970" class="mono" font-size="42" fill="#1a1a16" text-anchor="middle" letter-spacing="10">PARSHAS HASHAVUA</text>
+
+  <!-- tape reel motif -->
+  <g transform="translate(1500,2260)">
+    <g transform="translate(-140,0)">
+      <circle r="70" fill="none" stroke="#1a1a16" stroke-width="8" />
+      <line x1="-40" y1="0" x2="40" y2="0" stroke="#1a1a16" stroke-width="8" />
+    </g>
+    <g transform="translate(140,0)">
+      <circle r="70" fill="none" stroke="#1a1a16" stroke-width="8" />
+      <line x1="-40" y1="0" x2="40" y2="0" stroke="#1a1a16" stroke-width="8" />
+    </g>
+    <line x1="-70" y1="0" x2="70" y2="0" stroke="#1a1a16" stroke-width="8" />
+  </g>
+
+  <!-- corner stamp -->
+  <g transform="translate(2430,2430) rotate(-8)">
+    <rect x="-165" y="-60" width="330" height="120" fill="none" stroke="#2B3A9E" stroke-width="6" />
+    <text x="0" y="-6" class="mono" font-size="34" fill="#2B3A9E" text-anchor="middle" letter-spacing="4">DOV</text>
+    <text x="0" y="42" class="mono" font-size="34" fill="#2B3A9E" text-anchor="middle" letter-spacing="4">SLANSKY</text>
+  </g>
+</svg>
