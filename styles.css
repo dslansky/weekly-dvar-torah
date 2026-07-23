@@ -393,8 +393,6 @@ a {
   font-size: 1.1rem;
   color: var(--ink);
   text-align: left;
-  border-left: 2px solid var(--accent);
-  padding-left: 14px;
   margin: 24px 0 14px;
 }
 
