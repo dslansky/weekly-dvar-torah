@@ -44,18 +44,25 @@ function parseCsv(text) {
   return rows;
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const token = args.token || process.env.UPLOAD_TOKEN;
   const folder = args.folder;
   const csvPath = args.csv;
+  const delayMs = args['delay-ms'] !== undefined ? Number(args['delay-ms']) : 750;
 
   if (!token) {
     console.error('Missing upload token. Pass --token or set UPLOAD_TOKEN.');
     process.exit(1);
   }
   if (!folder || !csvPath) {
-    console.error('Usage: node backfill/upload.mjs --folder <dir> --csv <file> [--token <token>] [--dry-run]');
+    console.error(
+      'Usage: node backfill/upload.mjs --folder <dir> --csv <file> [--token <token>] [--delay-ms 750] [--dry-run]'
+    );
     process.exit(1);
   }
 
@@ -73,31 +80,34 @@ async function main() {
   let uploaded = 0;
   let skipped = 0;
   let failed = 0;
+  let index = 0;
 
   for (const row of rows) {
+    index++;
+    const progress = `[${index}/${rows.length}]`;
     const { filename, date, parsha, notes } = row;
     if (!filename || !date || !parsha) {
-      console.warn(`Skipping malformed row: ${JSON.stringify(row)}`);
+      console.warn(`${progress} SKIP  malformed row: ${JSON.stringify(row)}`);
       failed++;
       continue;
     }
 
     const id = `${date}-${slugify(parsha)}`;
     if (existingIds.has(id)) {
-      console.log(`SKIP  ${id} (already in manifest)`);
+      console.log(`${progress} SKIP  ${id} (already in manifest)`);
       skipped++;
       continue;
     }
 
     const filePath = path.join(folder, filename);
     if (!fs.existsSync(filePath)) {
-      console.error(`FAIL  ${id} — file not found: ${filePath}`);
+      console.error(`${progress} FAIL  ${id} — file not found: ${filePath}`);
       failed++;
       continue;
     }
 
     if (args['dry-run']) {
-      console.log(`DRY-RUN would upload ${id} from ${filePath}`);
+      console.log(`${progress} DRY-RUN would upload ${id} from ${filePath}`);
       continue;
     }
 
@@ -116,17 +126,19 @@ async function main() {
       });
       const body = await res.json();
       if (res.ok && body.ok) {
-        console.log(`OK    ${id} -> ${body.url}`);
+        console.log(`${progress} OK    ${id} -> ${body.url}`);
         existingIds.add(id);
         uploaded++;
       } else {
-        console.error(`FAIL  ${id} — ${JSON.stringify(body)}`);
+        console.error(`${progress} FAIL  ${id} — ${JSON.stringify(body)}`);
         failed++;
       }
     } catch (err) {
-      console.error(`FAIL  ${id} — ${err.message}`);
+      console.error(`${progress} FAIL  ${id} — ${err.message}`);
       failed++;
     }
+
+    if (delayMs > 0 && index < rows.length) await sleep(delayMs);
   }
 
   console.log(`\nDone. uploaded=${uploaded} skipped=${skipped} failed=${failed}`);
