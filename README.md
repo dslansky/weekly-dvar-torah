@@ -75,9 +75,26 @@ wrangler.toml                        R2 binding config for Pages
 npx wrangler pages secret put UPLOAD_TOKEN --project-name=weekly-dvar-torah
 ```
 
-This overwrites the existing secret. Update the Bearer token stored in the
-iOS Shortcut (and the backfill script's `.env`/env var) immediately after —
-uploads using the old token will start getting `401`.
+**This does not take effect on the currently-live deployment** — Pages binds
+secrets at deploy time, not per-request, so the old token keeps working until
+a new deployment goes out. Immediately after setting the secret, redeploy:
+
+```
+npx wrangler pages deploy . --project-name=weekly-dvar-torah --branch=main --commit-dirty=true
+```
+
+(or push any commit — the git integration deploy picks up the new secret
+too). Verify with a quick unauthenticated-style check before updating the
+Shortcut/backfill script:
+
+```
+curl -X POST https://weekly-dvar-torah.pages.dev/upload -H "Authorization: Bearer <new-token>"
+# expect: {"ok":false,"error":"expected multipart/form-data"}  (means auth passed)
+# NOT:    {"ok":false,"error":"unauthorized"}                  (means old deployment still live)
+```
+
+Then update the Bearer token stored in the iOS Shortcut (and the backfill
+script's env var) — uploads using the old token will start getting `401`.
 
 ## Replacing the podcast artwork
 
