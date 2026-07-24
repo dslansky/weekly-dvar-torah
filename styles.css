@@ -196,6 +196,21 @@ a {
   gap: 8px;
 }
 
+.cycle-break {
+  margin-top: 10px;
+}
+
+.shelf-list > .cycle-break:first-child {
+  margin-top: 0;
+}
+
+.cycle-label {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  color: var(--ink-faint);
+}
+
 /* ===== Entry card (label, not a drawn cassette) ===== */
 .entry {
   position: relative;

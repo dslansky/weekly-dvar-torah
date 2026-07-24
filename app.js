@@ -72,9 +72,30 @@
       groups.get(sefer).push(e);
     }
     for (const list of groups.values()) {
-      list.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+      // Newest reading-cycle first; within a cycle, ascending date — which
+      // is the actual Torah reading order (Bereishis before Noach before
+      // Lech Lecha, ...), not a raw date-descending shuffle that jumps
+      // between cycles and reads as random.
+      list.sort((a, b) => {
+        const ca = cycleYear(a.date);
+        const cb = cycleYear(b.date);
+        if (ca !== cb) return cb - ca;
+        return a.date < b.date ? -1 : a.date > b.date ? 1 : 0;
+      });
     }
     return groups;
+  }
+
+  // The annual Torah reading cycle runs roughly Simchas Torah (~October) to
+  // the next one, crossing the Gregorian year boundary. A date in Jan-Aug
+  // belongs to the cycle that started the previous September/October.
+  function cycleYear(iso) {
+    const [y, m] = String(iso).split('-').map(Number);
+    return m >= 9 ? y : y - 1;
+  }
+
+  function cycleLabel(cy) {
+    return `${cy}–${cy + 1}`;
   }
 
   function renderShelf(sefer, entries) {
@@ -94,12 +115,26 @@
     const ul = document.createElement('ul');
     ul.className = 'shelf-list';
 
+    let lastCycle = null;
     for (const entry of entries) {
+      const cy = cycleYear(entry.date);
+      if (cy !== lastCycle) {
+        ul.appendChild(renderCycleBreak(cy));
+        lastCycle = cy;
+      }
       ul.appendChild(renderEntry(entry));
     }
 
     section.appendChild(ul);
     return section;
+  }
+
+  function renderCycleBreak(cy) {
+    const li = document.createElement('li');
+    li.className = 'cycle-break';
+    li.setAttribute('aria-hidden', 'true');
+    li.innerHTML = `<span class="cycle-label">${escapeHtml(cycleLabel(cy))}</span>`;
+    return li;
   }
 
   function renderEntry(entry) {
@@ -217,12 +252,32 @@
   function wireSearch() {
     searchInput.addEventListener('input', () => {
       const q = normalizeSearch(searchInput.value);
-      document.querySelectorAll('.shelf-list > li').forEach((li) => {
-        const match = !q || li.dataset.parsha.includes(q);
-        li.style.display = match ? '' : 'none';
+
+      // Cycle-break <li>s aren't entries (no data-parsha) — hide one if
+      // every entry in its chunk got filtered out, otherwise leave it.
+      document.querySelectorAll('.shelf-list').forEach((list) => {
+        let currentBreak = null;
+        let breakHasVisible = false;
+        const finalizeBreak = () => {
+          if (currentBreak) currentBreak.style.display = breakHasVisible ? '' : 'none';
+        };
+
+        Array.from(list.children).forEach((li) => {
+          if (li.classList.contains('cycle-break')) {
+            finalizeBreak();
+            currentBreak = li;
+            breakHasVisible = false;
+            return;
+          }
+          const match = !q || li.dataset.parsha.includes(q);
+          li.style.display = match ? '' : 'none';
+          if (match) breakHasVisible = true;
+        });
+        finalizeBreak();
       });
+
       document.querySelectorAll('.shelf').forEach((section) => {
-        const visible = Array.from(section.querySelectorAll('.shelf-list > li')).some(
+        const visible = Array.from(section.querySelectorAll('.shelf-list > li:not(.cycle-break)')).some(
           (li) => li.style.display !== 'none'
         );
         section.style.display = visible ? '' : 'none';
