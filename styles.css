@@ -2,6 +2,8 @@
 :root {
   --paper: #fafaf7;
   --paper-shade: #f2f1ea;
+  --card-bg: #efe9db;
+  --accent-wash: #dfe4fb;
   --ink: #1a1a16;
   --ink-muted: #5c584e;
   --ink-faint: #8a8577;
@@ -142,17 +144,81 @@ a {
   padding: 20px 0;
 }
 
-/* ===== Shelf dividers ===== */
+/* ===== Pinned latest entry ===== */
+.latest-block {
+  margin: 2px 0 22px;
+}
+
+.latest-label {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+
+.latest-list {
+  margin: 0;
+}
+
+/* ===== Shelves: closed bars stack like spines on a shelf ===== */
 .shelf {
-  margin-top: 22px;
+  margin-top: 7px;
+}
+
+.shelf:first-of-type {
+  margin-top: 0;
+}
+
+.shelf > summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px 11px 11px;
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--card-bg);
+  cursor: pointer;
+  list-style: none;
+  transition: background-color 120ms ease;
+}
+
+.shelf > summary::-webkit-details-marker {
+  display: none;
+}
+
+.shelf > summary::marker {
+  content: '';
+}
+
+.shelf > summary:hover {
+  background: var(--accent-wash);
+}
+
+.shelf-caret {
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 4px 0 4px 6px;
+  border-color: transparent transparent transparent var(--ink-faint);
+  flex-shrink: 0;
+  transition: transform 120ms ease;
+}
+
+.shelf[open] > summary .shelf-caret {
+  transform: rotate(90deg);
 }
 
 .shelf-title {
   display: flex;
   align-items: baseline;
   gap: 10px;
-  margin: 0 0 4px;
+  flex: 1 1 0%;
   min-width: 0;
+  margin: 0;
   font-family: var(--mono);
   color: var(--ink);
 }
@@ -173,38 +239,43 @@ a {
   margin-left: -4px;
 }
 
-.shelf-rule {
-  flex: 1 1 0%;
-  min-width: 0;
-  border-bottom: 2px solid var(--line-strong);
-}
-
 .shelf-hebrew {
   font-family: var(--hebrew);
   font-size: 1.05rem;
   font-weight: 500;
   color: var(--accent);
   white-space: nowrap;
+  margin-left: auto;
+  padding-left: 10px;
 }
 
 .shelf-list {
   list-style: none;
-  margin: 10px 0 0;
+  margin: 6px 0 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .cycle-break {
-  margin-top: 10px;
+  margin-top: 8px;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  color: var(--ink-faint);
 }
 
 .shelf-list > .cycle-break:first-child {
   margin-top: 0;
 }
 
-.cycle-label {
+.cycle-hebrew {
+  font-family: var(--hebrew);
+  font-size: 0.82rem;
+  color: var(--ink-muted);
+}
+
+.cycle-secular {
   font-family: var(--mono);
   font-size: 0.68rem;
   letter-spacing: 0.06em;
@@ -214,19 +285,20 @@ a {
 /* ===== Entry card (label, not a drawn cassette) ===== */
 .entry {
   position: relative;
+  background: var(--card-bg);
   border: 1px solid var(--line);
-  border-left: 3px solid var(--accent);
+  border-left: 5px solid var(--accent);
   border-radius: var(--radius);
-  padding: 10px 14px 10px 12px;
+  padding: 8px 12px 8px 10px;
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   transition: background-color 120ms ease;
 }
 
 .entry:hover {
-  background: var(--paper-shade);
+  background: var(--accent-wash);
 }
 
 .entry.is-target {
@@ -235,10 +307,10 @@ a {
 
 @keyframes stamp-highlight {
   0% {
-    background: #dfe4fb;
+    background: var(--accent-wash);
   }
   100% {
-    background: transparent;
+    background: var(--card-bg);
   }
 }
 
@@ -320,7 +392,7 @@ a {
   font-family: var(--mono);
   font-size: 0.74rem;
   color: var(--ink-muted);
-  border-bottom: 1px solid var(--line-faint);
+  border-bottom: 1px solid var(--line);
 }
 
 .entry-notes {
@@ -354,6 +426,26 @@ a {
   text-align: right;
 }
 
+.entry-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.entry-duration {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.03em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-muted);
+  padding: 2px 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+}
+
 .share-btn {
   appearance: none;
   border: none;
@@ -370,7 +462,7 @@ a {
 
 .share-btn:hover {
   color: var(--accent);
-  background: var(--paper-shade);
+  background: var(--paper);
 }
 
 .share-btn svg {
@@ -431,6 +523,6 @@ a {
 
   .entry.is-target {
     animation: none;
-    background: #dfe4fb;
+    background: var(--accent-wash);
   }
 }
