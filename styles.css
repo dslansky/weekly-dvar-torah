@@ -146,6 +146,46 @@ a {
   color: var(--ink-faint);
 }
 
+.tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.tags-row[hidden] {
+  display: none;
+}
+
+.tags-row-label {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  color: var(--ink-faint);
+  margin-right: 2px;
+}
+
+.tag-chip {
+  appearance: none;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
+  color: var(--ink-muted);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 2px 7px;
+  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.tag-chip:hover {
+  background: var(--accent-wash);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
 /* ===== Archive root ===== */
 .archive-root {
   max-width: var(--column);
@@ -417,6 +457,13 @@ a {
   font-size: 0.82rem;
   color: var(--ink-muted);
   font-style: italic;
+}
+
+.entry-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
 }
 
 .entry-scrub {

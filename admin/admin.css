@@ -1,0 +1,202 @@
+/* Plain, functional utility page — deliberately not the "tape library"
+   public design language (cards/spines/shelves/rotating ring). Reuses the
+   site's palette/type tokens from /styles.css for visual consistency, laid
+   out as a dense table since scanning/correcting 85+ rows is the job. */
+
+.admin-body {
+  background: var(--paper);
+  color: var(--ink);
+  margin: 0;
+  padding: 24px 20px 60px;
+}
+
+.admin-header {
+  max-width: 1100px;
+  margin: 0 auto 20px;
+}
+
+.admin-title {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 1.4rem;
+  margin: 0 0 4px;
+}
+
+.admin-caption {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--ink-faint);
+  margin: 0 0 16px;
+}
+
+.admin-token-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+}
+
+.admin-token-row input {
+  flex: 1;
+  max-width: 340px;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.admin-filter {
+  width: 100%;
+  font-family: var(--serif);
+  font-size: 0.9rem;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
+}
+
+#admin-root {
+  max-width: 1100px;
+  margin: 0 auto;
+  overflow-x: auto;
+}
+
+.admin-status {
+  font-family: var(--mono);
+  color: var(--ink-muted);
+  font-size: 0.85rem;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.admin-table th {
+  text-align: left;
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line-strong);
+  white-space: nowrap;
+}
+
+.admin-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.admin-date {
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+
+.admin-parsha {
+  white-space: nowrap;
+}
+
+.admin-parsha-he {
+  font-family: var(--hebrew);
+  color: var(--accent);
+  font-size: 1rem;
+  margin-right: 6px;
+}
+
+.admin-parsha-en {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--ink-muted);
+}
+
+.admin-input {
+  width: 100%;
+  min-width: 130px;
+  font-family: var(--serif);
+  font-size: 0.85rem;
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.admin-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.admin-actions {
+  white-space: nowrap;
+}
+
+.admin-save-btn {
+  appearance: none;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  background: var(--paper);
+  border: 1.5px solid var(--accent);
+  padding: 5px 10px;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.admin-save-btn:hover {
+  background: var(--paper-shade);
+}
+
+.admin-save-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.admin-row-status {
+  margin-left: 8px;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--ink-faint);
+}
+
+.admin-row-status-ok {
+  color: var(--accent);
+}
+
+.admin-row-status-error {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.admin-row-flash {
+  animation: admin-flash 1200ms ease-out;
+}
+
+@keyframes admin-flash {
+  0% {
+    background: var(--accent-wash);
+  }
+  100% {
+    background: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-row-flash {
+    animation: none;
+  }
+}

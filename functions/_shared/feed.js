@@ -68,6 +68,7 @@ function buildFeedXml(manifest) {
       const title = xmlEscape(e.title || `Parshas ${e.parsha}`);
       const pubDate = rfc822NoonEastern(e.date);
       const duration = itunesDuration(e.durationSec);
+      const categories = (e.tags || []).map((t) => `      <category>${xmlEscape(t)}</category>`).join('\n');
       return `    <item>
       <title>${title}</title>
       <description>${xmlEscape(e.notes || title)}</description>
@@ -77,6 +78,7 @@ function buildFeedXml(manifest) {
       <link>${xmlEscape(`${BASE_URL}/#${e.id}`)}</link>
       ${duration ? `<itunes:duration>${duration}</itunes:duration>` : ''}
       <itunes:explicit>false</itunes:explicit>
+${categories}
     </item>`;
     })
     .join('\n');

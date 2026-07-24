@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Admin — Quick Torah Thoughts</title>
+  <link rel="icon" href="data:," />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Serif:ital,wght@0,400;0,600;1,400&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/admin/admin.css" />
+</head>
+<body class="admin-body">
+  <header class="admin-header">
+    <h1 class="admin-title">Admin — Quick Torah Thoughts</h1>
+    <p class="admin-caption">Edit title, notes, and tags on existing entries. Not linked from the site; token is stored only in this browser.</p>
+
+    <div class="admin-token-row">
+      <label for="token-input">Upload token</label>
+      <input type="password" id="token-input" autocomplete="off" spellcheck="false" />
+    </div>
+
+    <label class="visually-hidden" for="admin-filter">Filter entries</label>
+    <input
+      type="search"
+      id="admin-filter"
+      class="admin-filter"
+      placeholder="filter by parsha, title, or tag"
+      autocomplete="off"
+    />
+    <datalist id="tag-suggestions"></datalist>
+  </header>
+
+  <main id="admin-root">
+    <p class="admin-status">Loading…</p>
+  </main>
+
+  <script src="/admin/admin.js" defer></script>
+</body>
+</html>

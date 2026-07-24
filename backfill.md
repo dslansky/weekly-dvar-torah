@@ -103,6 +103,12 @@ UPLOAD_TOKEN=... node backfill/upload.mjs --folder "~/Past Recordings" --csv bac
   summary count at the end. Exits non-zero if anything failed, so it's
   script-friendly.
 
+## Tags
+
+Tags aren't part of the backfill CSV — add or edit tags for any entry
+(including ones you just backfilled) afterward via `/admin/` (see README's
+"Editing an existing entry").
+
 ## By default it targets production
 
 Both scripts hit `https://weekly-dvar-torah.pages.dev` unless you set

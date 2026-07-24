@@ -12,19 +12,23 @@ See also: [`SHORTCUT.md`](SHORTCUT.md) (iOS Shortcut setup), [`SUBMIT.md`](SUBMI
 - **R2 bucket `dvar-torah`** (private) — stores `audio/*.m4a`, `manifest.json`,
   `feed.xml`, `artwork.jpg`. Nothing in the bucket is public; every read goes
   through a Pages Function.
-- **Pages Functions** (`/functions`) — `POST /upload` and `DELETE /entry/{id}`
-  (authenticated, mutate R2 + regenerate the feed), plus `GET /audio/*`,
-  `GET /manifest.json`, `GET /feed.xml`, `GET /artwork.jpg` (serve from R2).
+- **Pages Functions** (`/functions`) — `POST /upload`, `PATCH /entry/{id}`,
+  and `DELETE /entry/{id}` (authenticated, mutate R2 + regenerate the feed),
+  plus `GET /audio/*`, `GET /manifest.json`, `GET /feed.xml`,
+  `GET /artwork.jpg` (serve from R2).
 - **Static site** (`index.html`, `styles.css`, `app.js`) — fetches
   `/manifest.json` client-side and renders the archive. No build step, no
   framework.
+- **Admin page** (`/admin/`, not linked from the site) — a plain filterable
+  table for editing an existing entry's title/notes/tags without touching
+  its audio. See "Editing an existing entry" below.
 
 ## Repo layout
 
 ```
 functions/
   upload.js              POST /upload
-  entry/[id].js           DELETE /entry/{id}
+  entry/[id].js           PATCH + DELETE /entry/{id}
   manifest.json.js        GET /manifest.json
   feed.xml.js              GET /feed.xml
   artwork.jpg.js           GET /artwork.jpg
@@ -34,8 +38,9 @@ functions/
     manifest.js             R2 read/write helpers for manifest.json
     feed.js                  RSS/iTunes feed XML builder
     mp4-duration.js          in-Worker m4a duration parser (no deps)
-    util.js                   auth check, slugify, misc helpers
+    util.js                   auth check, slugify, tag normalization, misc helpers
 index.html / styles.css / app.js    the archive site
+admin/index.html + admin.js         entry-editing admin page (see below)
 design/artwork-source.svg           source for artwork.jpg (see below)
 backfill/                            bulk-upload script + CSV template
 wrangler.toml                        R2 binding config for Pages
@@ -159,6 +164,7 @@ See `functions/_shared/manifest.js` / `functions/upload.js`. Each entry:
   "sefer": "Bamidbar",
   "title": "Parshas Pinchas",
   "notes": "",
+  "tags": ["Bitachon"],
   "audio": "https://weekly-dvar-torah.pages.dev/audio/2026-07-17-pinchas.m4a",
   "bytes": 8421000,
   "durationSec": 412
@@ -169,11 +175,43 @@ See `functions/_shared/manifest.js` / `functions/upload.js`. Each entry:
 lookup table in `functions/_shared/parsha-data.js`. Unrecognized names (e.g.
 freeform Yom Tov entries) fall back to `sefer: "Moadim"` and no Hebrew name.
 
-## Fixing a bad upload
+`tags` is an optional array of freeform strings (e.g. topical themes like
+"Bitachon", or occasions) — omitted entirely on entries that don't have any
+(the manifest is schema-free JSON, no migration needed). Tags are how the
+site's search/browse-by-tag feature and the feed's per-episode `<category>`
+elements are driven; see "Editing an existing entry" below for how to set
+them.
+
+## Editing an existing entry
+
+**Title, notes, and tags** can be edited in place via `PATCH /entry/{id}`,
+without touching the audio file or the manifest id:
+
+```
+curl -X PATCH https://weekly-dvar-torah.pages.dev/entry/2026-07-17-pinchas \
+  -H "Authorization: Bearer $UPLOAD_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"tags": ["Bitachon"]}'
+```
+
+Only the keys present in the body are changed — `{"tags": [...]}` alone
+leaves `title`/`notes` untouched. `tags` must be an array of strings (they're
+trimmed, deduped case-insensitively, and empties dropped server-side).
+Regenerates the manifest and feed, same as upload/delete.
+
+Day to day, use **`/admin/`** instead of curl — a plain, filterable table of
+every entry (not linked from the site; paste your `UPLOAD_TOKEN` once, it's
+kept in that browser's `localStorage`) with editable title/notes/tags and a
+Save button per row.
+
+**Date, parsha, or the audio itself** can't be edited via PATCH — those are
+baked into the id and the R2 audio object key. Fixing those still means
+delete + re-upload:
 
 ```
 curl -X DELETE https://weekly-dvar-torah.pages.dev/entry/2026-07-17-pinchas \
   -H "Authorization: Bearer $UPLOAD_TOKEN"
 ```
 
-Removes the manifest entry, the audio file, and regenerates the feed.
+Removes the manifest entry, the audio file, and regenerates the feed — then
+`POST /upload` the corrected version.

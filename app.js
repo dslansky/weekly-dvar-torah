@@ -15,6 +15,7 @@
   const root = document.getElementById('archive-root');
   const searchInput = document.getElementById('search-input');
   const searchRow = document.getElementById('search-row');
+  const tagsRow = document.getElementById('tags-row');
 
   let allEntries = [];
   let activeAudio = null; // { audioEl, article }
@@ -37,8 +38,47 @@
     if (searchRow) searchRow.hidden = allEntries.length < SEARCH_MIN_ENTRIES;
 
     render(allEntries);
+    renderTagsRow(allEntries);
     wireSearch();
     wirePermalink();
+    wireTagChips();
+  }
+
+  function renderTagsRow(entries) {
+    if (!tagsRow) return;
+
+    const seen = new Map(); // lowercase -> first-seen casing
+    for (const e of entries) {
+      for (const t of e.tags || []) {
+        const key = String(t).toLowerCase();
+        if (!seen.has(key)) seen.set(key, t);
+      }
+    }
+    const tags = Array.from(seen.values()).sort((a, b) => a.localeCompare(b));
+
+    // Hidden entirely until something's actually tagged, and also whenever
+    // the search box itself is hidden (few entries) — a chip that filters an
+    // invisible search input would just be confusing.
+    if (!tags.length || (searchRow && searchRow.hidden)) {
+      tagsRow.hidden = true;
+      tagsRow.innerHTML = '';
+      return;
+    }
+
+    tagsRow.innerHTML =
+      '<span class="tags-row-label">tags</span>' +
+      tags.map((t) => `<button class="tag-chip" type="button" data-tag="${escapeAttr(t)}">${escapeHtml(t)}</button>`).join('');
+    tagsRow.hidden = false;
+  }
+
+  function wireTagChips() {
+    document.addEventListener('click', (e) => {
+      const chip = e.target.closest('.tag-chip');
+      if (!chip) return;
+      searchInput.value = chip.dataset.tag;
+      searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+      searchInput.focus();
+    });
   }
 
   function render(entries) {
@@ -252,10 +292,18 @@
   function renderEntry(entry) {
     const li = document.createElement('li');
     li.id = entry.id;
-    li.dataset.parsha = normalizeSearch(entry.parsha + ' ' + (entry.parshaHebrew || ''));
+    li.dataset.parsha = normalizeSearch(
+      [entry.parsha, entry.parshaHebrew, ...(entry.tags || [])].filter(Boolean).join(' ')
+    );
 
     const durationLabel = entry.durationSec ? formatTime(entry.durationSec) : '—';
     const metaParts = [escapeHtml(entry.parsha), escapeHtml(formatDateUS(entry.date))];
+    const tagsHtml =
+      entry.tags && entry.tags.length
+        ? `<div class="entry-tags">${entry.tags
+            .map((t) => `<button class="tag-chip" type="button" data-tag="${escapeAttr(t)}">${escapeHtml(t)}</button>`)
+            .join('')}</div>`
+        : '';
 
     li.innerHTML = `
       <article class="entry" data-id="${escapeAttr(entry.id)}">
@@ -270,6 +318,7 @@
           <div class="entry-hebrew" lang="he" dir="rtl" data-fallback="${escapeAttr(entry.parsha)}">${escapeHtml(entry.parshaHebrew || '')}</div>
           <div class="entry-meta">${metaParts.join(' &middot; ')}</div>
           ${entry.notes ? `<div class="entry-notes">${escapeHtml(entry.notes)}</div>` : ''}
+          ${tagsHtml}
           <div class="entry-scrub">
             <input type="range" class="entry-range" min="0" max="100" value="0" step="0.1" aria-label="Seek" />
             <span class="entry-time">0:00 / ${escapeHtml(durationLabel)}</span>
