@@ -112,7 +112,6 @@ a {
 
 .listen-links a {
   color: var(--ink-muted);
-  margin-left: 4px;
 }
 
 .listen-links a + a::before {
