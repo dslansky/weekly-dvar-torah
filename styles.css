@@ -102,6 +102,24 @@ a {
   background: var(--paper-shade);
 }
 
+.listen-links {
+  display: inline-block;
+  margin-left: 14px;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--ink-faint);
+}
+
+.listen-links a {
+  color: var(--ink-muted);
+  margin-left: 4px;
+}
+
+.listen-links a + a::before {
+  content: '· ';
+  color: var(--ink-faint);
+}
+
 .search-row {
   position: sticky;
   top: 0;
