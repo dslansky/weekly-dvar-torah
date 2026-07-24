@@ -4,6 +4,16 @@ A personal archive + podcast feed for weekly Dvar Torah recordings. Built on
 Cloudflare: R2 for storage, Pages Functions for the API, Cloudflare Pages for
 the static archive site. Everything lives on `https://weekly-dvar-torah.pages.dev`.
 
+**Live on Apple Podcasts:** https://podcasts.apple.com/us/podcast/quick-torah-thoughts/id6794228563
+— the site's "Listen on Apple Podcasts" button (`index.html`'s `.stamp-btn`)
+links straight there rather than to `feed.xml`, since a plain link to raw RSS
+XML is a dead end on iOS Safari (no registered handler, just a "find an app
+for this file" prompt). The feed URL is still available as a small "RSS
+feed" link next to it, for pasting into another podcast app. Not yet
+submitted to Spotify — see `SUBMIT.md`; once it's approved, add its URL next
+to Apple's the same way (a `<div class="listen-links">` link, see
+`styles.css`'s `.listen-links` rules).
+
 See also: [`SHORTCUT.md`](SHORTCUT.md) (iOS Shortcut setup), [`SUBMIT.md`](SUBMIT.md)
 (podcast directory submission), [`backfill.md`](backfill.md) (bulk-upload old recordings).
 
